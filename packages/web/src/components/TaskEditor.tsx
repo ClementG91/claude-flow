@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Trash2, FileText, Check, Power, Clock, History, Settings } from 'lucide-react';
+import { X, Save, Trash2, FileText, Check, Power, Clock, History, Settings, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
@@ -30,6 +30,8 @@ export function TaskEditor() {
   const [cronExpression, setCronExpression] = useState('');
   const [isEnabled, setIsEnabled] = useState(false);
 
+  const isReadonly = task?.readonly === true;
+
   const updateMutation = trpc.tasks.update.useMutation({
     onSuccess: () => {
       utils.tasks.list.invalidate();
@@ -39,8 +41,9 @@ export function TaskEditor() {
       toast.success('Task saved');
       setTimeout(() => setSaveStatus('idle'), 2000);
     },
-    onError: () => {
+    onError: (err) => {
       setSaveStatus('error');
+      toast.error(err.message);
       setTimeout(() => setSaveStatus('idle'), 3000);
     },
   });
@@ -57,6 +60,9 @@ export function TaskEditor() {
       utils.tasks.list.invalidate();
       closeEditor();
       toast.success('Task deleted');
+    },
+    onError: (err) => {
+      toast.error(err.message);
     },
   });
 
@@ -131,7 +137,12 @@ export function TaskEditor() {
           <h2 className="truncate text-sm font-semibold">{selectedTaskId}</h2>
           {/* Enabled badge */}
           <span className={`shrink-0 h-2 w-2 rounded-full ${schedule?.enabled ? 'bg-green-500' : 'bg-zinc-600'}`} />
-          {hasChanges && saveStatus === 'idle' && (
+          {isReadonly && (
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-zinc-700/50 px-2 py-0.5 text-[10px] text-zinc-400" title="This task is in a protected folder and cannot be modified from claude-flow">
+              <Lock className="h-3 w-3" />Read-only
+            </span>
+          )}
+          {!isReadonly && hasChanges && saveStatus === 'idle' && (
             <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-400">Unsaved</span>
           )}
           {saveStatus === 'saved' && (
@@ -139,8 +150,12 @@ export function TaskEditor() {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={handleSave} disabled={!hasChanges || saveStatus === 'saving'} className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-green-400 disabled:opacity-30" title="Save (Ctrl+S)"><Save className={`h-4 w-4 ${saveStatus === 'saving' ? 'animate-pulse' : ''}`} /></button>
-          <button onClick={handleDelete} disabled={deleteMutation.isPending} className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-red-400 disabled:opacity-30" title="Delete"><Trash2 className="h-4 w-4" /></button>
+          {!isReadonly && (
+            <>
+              <button onClick={handleSave} disabled={!hasChanges || saveStatus === 'saving'} className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-green-400 disabled:opacity-30" title="Save (Ctrl+S)"><Save className={`h-4 w-4 ${saveStatus === 'saving' ? 'animate-pulse' : ''}`} /></button>
+              <button onClick={handleDelete} disabled={deleteMutation.isPending} className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-red-400 disabled:opacity-30" title="Delete"><Trash2 className="h-4 w-4" /></button>
+            </>
+          )}
           <button onClick={closeEditor} className="rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200" title="Close (Esc)"><X className="h-4 w-4" /></button>
         </div>
       </div>
@@ -174,14 +189,14 @@ export function TaskEditor() {
             <div className="flex flex-1 flex-col gap-4 p-4">
               <div>
                 <label className="mb-1.5 block text-xs font-medium uppercase tracking-wider text-zinc-500">Description</label>
-                <input type="text" value={description} onChange={(e) => { setDescription(e.target.value); setHasChanges(true); }} className="w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-claude-600 focus:ring-1 focus:ring-claude-600" />
+                <input type="text" value={description} onChange={(e) => { setDescription(e.target.value); setHasChanges(true); }} readOnly={isReadonly} className={`w-full rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-zinc-200 outline-none focus:border-claude-600 focus:ring-1 focus:ring-claude-600 ${isReadonly ? 'cursor-not-allowed opacity-60' : ''}`} />
               </div>
               <div className="flex flex-1 flex-col">
                 <div className="mb-1.5 flex items-center justify-between">
                   <label className="text-xs font-medium uppercase tracking-wider text-zinc-500">Task Prompt (SKILL.md)</label>
                   <span className="text-[10px] text-zinc-600">{content.length} chars</span>
                 </div>
-                <textarea value={content} onChange={(e) => { setContent(e.target.value); setHasChanges(true); }} className="flex-1 min-h-[300px] resize-none rounded-lg border border-zinc-800 bg-zinc-900 p-3 font-mono text-xs leading-relaxed text-zinc-300 outline-none focus:border-claude-600 focus:ring-1 focus:ring-claude-600" spellCheck={false} />
+                <textarea value={content} onChange={(e) => { setContent(e.target.value); setHasChanges(true); }} readOnly={isReadonly} className={`flex-1 min-h-[300px] resize-none rounded-lg border border-zinc-800 bg-zinc-900 p-3 font-mono text-xs leading-relaxed text-zinc-300 outline-none focus:border-claude-600 focus:ring-1 focus:ring-claude-600 ${isReadonly ? 'cursor-not-allowed opacity-60' : ''}`} spellCheck={false} />
               </div>
             </div>
           )}

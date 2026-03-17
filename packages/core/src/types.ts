@@ -20,6 +20,8 @@ export interface TaskFile {
   content: string;
   /** Full absolute path to the SKILL.md file */
   filePath: string;
+  /** Whether this task is in a protected/external directory (read-only) */
+  readonly?: boolean;
 }
 
 /**

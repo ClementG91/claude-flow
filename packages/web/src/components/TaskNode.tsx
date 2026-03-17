@@ -1,6 +1,6 @@
 import { memo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
-import { Clock, Play, FileText } from 'lucide-react';
+import { Clock, Play, FileText, Lock } from 'lucide-react';
 import { useWorkflowStore } from '../stores/workflow';
 
 export interface TaskNodeData {
@@ -10,6 +10,7 @@ export interface TaskNodeData {
   cronExpression?: string;
   schedule?: string;
   enabled?: boolean;
+  readonly?: boolean;
   nextRunAt?: string;
   lastRunAt?: string;
   [key: string]: unknown;
@@ -59,7 +60,8 @@ export const TaskNode = memo(function TaskNode({ data, selected }: NodeProps) {
             {nodeData.taskId}
           </span>
         </div>
-        {/* Enabled indicator */}
+        {/* Readonly / Enabled indicator */}
+        {nodeData.readonly && <span title="Read-only"><Lock className="h-3 w-3 text-zinc-500" /></span>}
         <div className={`h-2 w-2 rounded-full ${isEnabled ? 'bg-green-500' : 'bg-zinc-600'}`} title={isEnabled ? 'Enabled' : 'Disabled'} />
       </div>
 

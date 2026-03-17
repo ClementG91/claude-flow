@@ -1,4 +1,4 @@
-import { Search, Clock, Plus, Minus } from 'lucide-react';
+import { Search, Clock, Plus, Minus, Lock } from 'lucide-react';
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
@@ -146,8 +146,9 @@ export function Sidebar() {
                         }`} />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-zinc-200">
+                        <p className="flex items-center gap-1.5 truncate text-sm font-medium text-zinc-200">
                           {task.taskId}
+                          {task.readonly && <span title="Read-only (protected folder)"><Lock className="h-3 w-3 shrink-0 text-zinc-500" /></span>}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-zinc-500">
                           {task.frontmatter.description}

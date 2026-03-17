@@ -25,7 +25,8 @@ claude-flow/
 │   ├── core/        # Shared logic: parser, scanner, config, schedule, history
 │   ├── server/      # Fastify + tRPC API server (port 3710)
 │   └── web/         # React 19 + Vite 6 + React Flow 12 frontend
-├── apps/            # (reserved for future CLI)
+├── apps/
+│   └── cli/         # CLI entry point (start/dev commands)
 ├── package.json     # pnpm workspace root
 └── pnpm-workspace.yaml
 ```

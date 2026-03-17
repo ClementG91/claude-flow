@@ -238,6 +238,7 @@ export function Canvas() {
           cronExpression: schedule?.cronExpression,
           schedule: schedule?.schedule,
           enabled: schedule?.enabled,
+          readonly: task.readonly,
           nextRunAt: schedule?.nextRunAt,
           lastRunAt: schedule?.lastRunAt,
         } satisfies TaskNodeData,

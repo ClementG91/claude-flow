@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { TRPCError } from '@trpc/server';
 import { router, publicProcedure } from '../trpc.js';
 import {
   scanTasks,
@@ -6,12 +7,23 @@ import {
   createTaskFile,
   updateTaskFile,
   deleteTaskFile,
-  taskExists,
   loadConfig,
   loadClaudeDesktopConfig,
 } from '@claude-flow/core';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+
+/** Wrap fs operations and throw a user-friendly error on EPERM/EACCES */
+function handleProtectedFolderError(err: unknown, taskId: string): never {
+  const code = (err as NodeJS.ErrnoException).code;
+  if (code === 'EPERM' || code === 'EACCES') {
+    throw new TRPCError({
+      code: 'FORBIDDEN',
+      message: `Cannot modify "${taskId}": this task is in a Windows-protected folder. It is read-only in claude-flow.`,
+    });
+  }
+  throw err;
+}
 
 /**
  * Discover additional task directories from Claude Desktop's scheduled-tasks.json.
@@ -41,6 +53,37 @@ async function discoverExtraTaskDirs(mainDir: string): Promise<string[]> {
   }
 }
 
+/**
+ * Resolve the actual base directory where a task lives.
+ * Checks the main tasksDirectory first, then extra discovered directories.
+ */
+async function resolveTaskBaseDir(taskId: string): Promise<string> {
+  const config = await loadConfig();
+
+  // Check main directory first
+  const mainPath = path.join(config.tasksDirectory, taskId, 'SKILL.md');
+  try {
+    await fs.access(mainPath);
+    return config.tasksDirectory;
+  } catch {
+    // Not in main dir
+  }
+
+  // Check extra directories
+  const extraDirs = await discoverExtraTaskDirs(config.tasksDirectory);
+  for (const dir of extraDirs) {
+    const extraPath = path.join(dir, taskId, 'SKILL.md');
+    try {
+      await fs.access(extraPath);
+      return dir;
+    } catch {
+      // Not in this dir either
+    }
+  }
+
+  throw new Error(`Task "${taskId}" not found in any known directory`);
+}
+
 export const tasksRouter = router({
   /**
    * List all tasks from the filesystem.
@@ -53,11 +96,13 @@ export const tasksRouter = router({
     const seenIds = new Set(tasks.map((t) => t.taskId));
 
     // Also scan directories referenced in Claude Desktop config
+    // These are marked readonly (may be in Windows protected folders)
     const extraDirs = await discoverExtraTaskDirs(config.tasksDirectory);
     for (const dir of extraDirs) {
       const extra = await scanTasks(dir);
       for (const task of extra) {
         if (!seenIds.has(task.taskId)) {
+          task.readonly = true;
           tasks.push(task);
           seenIds.add(task.taskId);
         }
@@ -74,9 +119,17 @@ export const tasksRouter = router({
     .input(z.object({ taskId: z.string() }))
     .query(async ({ input }) => {
       const config = await loadConfig();
-      const filePath = path.join(config.tasksDirectory, input.taskId, 'SKILL.md');
+      const baseDir = await resolveTaskBaseDir(input.taskId);
+      const filePath = path.join(baseDir, input.taskId, 'SKILL.md');
       const raw = await fs.readFile(filePath, 'utf-8');
-      return parseSkillFile(raw, filePath, input.taskId);
+      const task = parseSkillFile(raw, filePath, input.taskId);
+      // Mark readonly if task lives outside the main directory
+      const mainNorm = config.tasksDirectory.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      const baseDirNorm = baseDir.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
+      if (baseDirNorm !== mainNorm) {
+        task.readonly = true;
+      }
+      return task;
     }),
 
   /**
@@ -108,9 +161,13 @@ export const tasksRouter = router({
       })
     )
     .mutation(async ({ input }) => {
-      const config = await loadConfig();
-      const filePath = await updateTaskFile(config.tasksDirectory, input);
-      return { taskId: input.taskId, filePath };
+      try {
+        const baseDir = await resolveTaskBaseDir(input.taskId);
+        const filePath = await updateTaskFile(baseDir, input);
+        return { taskId: input.taskId, filePath };
+      } catch (err) {
+        handleProtectedFolderError(err, input.taskId);
+      }
     }),
 
   /**
@@ -119,9 +176,13 @@ export const tasksRouter = router({
   delete: publicProcedure
     .input(z.object({ taskId: z.string() }))
     .mutation(async ({ input }) => {
-      const config = await loadConfig();
-      await deleteTaskFile(config.tasksDirectory, input.taskId);
-      return { taskId: input.taskId, deleted: true };
+      try {
+        const baseDir = await resolveTaskBaseDir(input.taskId);
+        await deleteTaskFile(baseDir, input.taskId);
+        return { taskId: input.taskId, deleted: true };
+      } catch (err) {
+        handleProtectedFolderError(err, input.taskId);
+      }
     }),
 
   /**
@@ -130,8 +191,11 @@ export const tasksRouter = router({
   checkId: publicProcedure
     .input(z.object({ taskId: z.string() }))
     .query(async ({ input }) => {
-      const config = await loadConfig();
-      const exists = await taskExists(config.tasksDirectory, input.taskId);
-      return { taskId: input.taskId, available: !exists };
+      try {
+        await resolveTaskBaseDir(input.taskId);
+        return { taskId: input.taskId, available: false };
+      } catch {
+        return { taskId: input.taskId, available: true };
+      }
     }),
 });
