@@ -11,8 +11,7 @@ Claude Flow gives you a unified dashboard to manage, connect, and monitor all yo
 - **Task Editor** — Four-tab editor (Content, Schedule, History, Config) with real-time save, Ctrl+S shortcut, and inline cron builder with 12 presets.
 - **Claude Desktop Config** — Control permission mode (ask / auto-accept / plan / skip all), model selection, jitter toggle, and view approved MCP tools — all from the UI.
 - **Multi-Directory Discovery** — Automatically discovers tasks from `~/.claude/scheduled-tasks/` and any additional directories referenced in Claude Desktop's config.
-- **Execution History** — Timeline view of past runs with status (success / failed / running), trigger source, and duration.
-- **Workflow Variables** — Define key-value variables per workflow (like `.env` files) for shared configuration across tasks.
+- **Workflow Environment Variables** — Define key-value variables per workflow, synced to `.env` files on disk (`~/.claude-flow/envs/{workflowId}.env`). Tasks reference the `.env` file so you can update config from the UI without editing SKILL.md files.
 - **List View** — Switch between canvas and list view depending on your preference.
 - **Minimap** — Toggle a minimap overlay for navigating large workflows.
 - **Dark Theme** — Zinc-based dark UI with Claude orange (#f0760c) accents.
@@ -101,7 +100,6 @@ The server exposes a tRPC API at `/trpc/*` with the following routers:
 | `tasks`          | list, getById, create, update, delete, checkId        |
 | `workflows`      | list, getById, create, update, updateLayout, updateVariables, duplicate, delete |
 | `schedule`       | getAll, getByTaskId, updateLocal, syncFromClaudeDesktop |
-| `history`        | recent, byTask, record, clearTaskHistory              |
 | `settings`       | get, update                                           |
 | `claudeDesktop`  | getTaskConfig, updateTaskConfig, listAvailableModels  |
 
@@ -141,11 +139,10 @@ pnpm lint
 
 ## Roadmap
 
-- [ ] Task chaining via `claude -p` CLI (trigger downstream tasks on completion)
 - [ ] Smart cron suggestions when connecting tasks
-- [ ] Workflow execution engine with status tracking
-- [ ] Webhook triggers
+- [ ] Auto-generate workflow edges from task cron schedules
 - [ ] Task templates and marketplace
+- [ ] Integration with Claude Desktop execution logs
 
 ## License
 

@@ -1,6 +1,8 @@
 import { z } from 'zod';
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { router, publicProcedure } from '../trpc.js';
-import { loadConfig, modifyConfig } from '@claude-flow/core';
+import { loadConfig, modifyConfig, getConfigDirectory } from '@claude-flow/core';
 import type { Workflow } from '@claude-flow/core';
 
 const nodePositionSchema = z.object({
@@ -164,6 +166,57 @@ export const workflowsRouter = router({
         config.workflows[idx].updatedAt = new Date().toISOString();
         result = config.workflows[idx];
       });
+
+      // Write .env file directly in the tasks directory (accessible by Claude Desktop)
+      const config = await loadConfig();
+      const envPath = path.join(config.tasksDirectory, '.env');
+      const envContent = Object.entries(input.variables)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n');
+      await fs.writeFile(envPath, envContent + '\n', 'utf-8');
+
+      // Also write to ~/.claude-flow/envs/ as backup
+      const envsDir = path.join(getConfigDirectory(), 'envs');
+      await fs.mkdir(envsDir, { recursive: true });
+      await fs.writeFile(path.join(envsDir, `${input.id}.env`), envContent + '\n', 'utf-8');
+
+      // Inject env reference into SKILL.md files linked to this workflow
+      if (result) {
+        const taskRefs = new Set<string>();
+
+        // Collect task IDs from workflow nodes and edges
+        for (const [taskId] of Object.entries(result.nodePositions)) {
+          taskRefs.add(taskId);
+        }
+        for (const edge of result.edges) {
+          if (edge.sourceTaskId) taskRefs.add(edge.sourceTaskId);
+          if (edge.targetTaskId) taskRefs.add(edge.targetTaskId);
+        }
+
+        const envRefLine = `> **Environment:** Lis les variables depuis \`${envPath.replace(/\\/g, '/')}\` avant de commencer.\n`;
+
+        for (const taskId of taskRefs) {
+          const skillPath = path.join(config.tasksDirectory, taskId, 'SKILL.md');
+          try {
+            let content = await fs.readFile(skillPath, 'utf-8');
+            if (content.includes('**Environment:**')) {
+              // Update existing reference
+              content = content.replace(/> \*\*Environment:\*\*.*\n/, envRefLine);
+            } else {
+              // Insert after frontmatter (after second ---)
+              const fmEnd = content.indexOf('---', content.indexOf('---') + 3);
+              if (fmEnd !== -1) {
+                const insertPos = content.indexOf('\n', fmEnd) + 1;
+                content = content.slice(0, insertPos) + '\n' + envRefLine + content.slice(insertPos);
+              }
+            }
+            await fs.writeFile(skillPath, content, 'utf-8');
+          } catch {
+            // SKILL.md not found — skip
+          }
+        }
+      }
+
       return result!;
     }),
 

@@ -146,51 +146,69 @@ export async function syncFromClaudeDesktop(): Promise<
 }
 
 /**
- * Generate a human-readable description of a cron expression.
+ * Generate a human-readable French description of a cron expression.
  */
 function describeCron(cron: string): string {
   const parts = cron.split(' ');
   if (parts.length !== 5) return cron;
 
   const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  const jours = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+  const joursFull = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
 
-  // Common patterns
+  // Every N minutes
   if (minute.startsWith('*/')) {
-    return `Every ${minute.slice(2)} minutes`;
+    return `Toutes les ${minute.slice(2)} min`;
   }
+  // Every hour
   if (hour === '*' && minute !== '*') {
-    return `Every hour at :${minute.padStart(2, '0')}`;
+    return `Chaque heure à :${minute.padStart(2, '0')}`;
   }
 
-  const timeStr = `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`;
+  // Format time — handle multi-hour (e.g. "10,14,18")
+  const formatTime = (h: string, m: string): string => {
+    if (h.includes(',')) {
+      return h.split(',').map((hh) => `${hh.trim()}h${m === '0' || m === '00' ? '' : m.padStart(2, '0')}`).join(', ');
+    }
+    return `${h.padStart(2, '0')}:${m.padStart(2, '0')}`;
+  };
+
+  const timeStr = formatTime(hour, minute);
 
   if (dayOfMonth === '*' && month === '*') {
+    // Daily
     if (dayOfWeek === '*') {
-      return `Every day at ${timeStr}`;
+      return `Tous les jours à ${timeStr}`;
     }
+    // Weekdays
     if (dayOfWeek === '1-5') {
-      return `Weekdays at ${timeStr}`;
+      return `Jours de semaine à ${timeStr}`;
     }
-    if (dayOfWeek === '0') {
-      return `Every Sunday at ${timeStr}`;
+    // Weekend
+    if (dayOfWeek === '0,6' || dayOfWeek === '6,0') {
+      return `Week-end à ${timeStr}`;
     }
-    if (dayOfWeek === '1') {
-      return `Every Monday at ${timeStr}`;
+
+    // Comma-separated days (e.g. "1,4" → "Lun & Jeu")
+    if (dayOfWeek.includes(',')) {
+      const dayNames = dayOfWeek.split(',').map((d) => {
+        const n = parseInt(d.trim(), 10);
+        return (!isNaN(n) && n >= 0 && n <= 6) ? jours[n] : d.trim();
+      });
+      return `${dayNames.join(' & ')} à ${timeStr}`;
     }
-    if (dayOfWeek === '5') {
-      return `Every Friday at ${timeStr}`;
-    }
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+    // Single day
     const dayNum = parseInt(dayOfWeek, 10);
     if (!isNaN(dayNum) && dayNum >= 0 && dayNum <= 6) {
-      return `Every ${days[dayNum]} at ${timeStr}`;
+      return `Chaque ${joursFull[dayNum]} à ${timeStr}`;
     }
-    return `${dayOfWeek} at ${timeStr}`;
+    return `${dayOfWeek} à ${timeStr}`;
   }
 
   if (dayOfMonth !== '*' && month === '*') {
-    return `Day ${dayOfMonth} of each month at ${timeStr}`;
+    return `Le ${dayOfMonth} de chaque mois à ${timeStr}`;
   }
 
-  return `${cron} (custom)`;
+  return cron;
 }

@@ -10,11 +10,41 @@ import type { TaskFile, TaskFrontmatter } from './types.js';
  * @throws Error if frontmatter is invalid
  */
 export function parseSkillFile(raw: string, filePath: string, taskId: string): TaskFile {
-  const { data, content } = matter(raw);
+  let data: Record<string, unknown> = {};
+  let content: string;
+
+  try {
+    const parsed = matter(raw);
+    data = parsed.data as Record<string, unknown>;
+    content = parsed.content;
+  } catch {
+    // If gray-matter fails (e.g. YAML with unquoted colons), fallback to manual parse
+    content = raw;
+    const fmMatch = raw.match(/^---\n([\s\S]*?)\n---\n?([\s\S]*)$/);
+    if (fmMatch) {
+      content = fmMatch[2];
+      for (const line of fmMatch[1].split('\n')) {
+        const colonIdx = line.indexOf(':');
+        if (colonIdx > 0) {
+          const key = line.slice(0, colonIdx).trim();
+          const value = line.slice(colonIdx + 1).trim();
+          data[key] = value;
+        }
+      }
+    }
+  }
+
+  // If description was parsed as non-string (YAML treats "text: more text" as object),
+  // fallback to manual extraction from raw frontmatter
+  let description = typeof data.description === 'string' ? data.description : '';
+  if (!description) {
+    const descMatch = raw.match(/^description:\s*(.+)$/m);
+    if (descMatch) description = descMatch[1].trim();
+  }
 
   const frontmatter: TaskFrontmatter = {
     name: typeof data.name === 'string' ? data.name : taskId,
-    description: typeof data.description === 'string' ? data.description : '',
+    description,
   };
 
   return {

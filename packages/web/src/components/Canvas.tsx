@@ -13,6 +13,7 @@ import {
   type Edge,
   type EdgeChange,
   type EdgeMouseHandler,
+  MarkerType,
 } from '@xyflow/react';
 import { Map as MapIcon, EyeOff } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
@@ -252,9 +253,11 @@ export function Canvas() {
         id: e.id,
         source: e.sourceTaskId,
         target: e.targetTaskId,
+        type: 'smoothstep',
         label: EDGE_LABELS[e.condition ?? 'always'] || undefined,
         animated: true,
         style: getEdgeStyle(e.condition),
+        markerEnd: { type: MarkerType.ArrowClosed, color: '#f0760c', width: 18, height: 18 },
         data: { condition: e.condition ?? 'always' },
       }));
       setEdges(newEdges);
@@ -369,6 +372,12 @@ export function Canvas() {
         onEdgeContextMenu={onEdgeContextMenu}
         onPaneClick={onPaneClick}
         nodeTypes={nodeTypes}
+        defaultEdgeOptions={{
+          type: 'smoothstep',
+          animated: true,
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#f0760c', width: 18, height: 18 },
+          style: { stroke: '#f0760c', strokeWidth: 2 },
+        }}
         fitView
         fitViewOptions={{ padding: 0.2 }}
         proOptions={{ hideAttribution: true }}

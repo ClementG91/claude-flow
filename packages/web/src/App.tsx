@@ -7,7 +7,6 @@ import { Sidebar } from './components/Sidebar';
 import { TaskEditor } from './components/TaskEditor';
 import { CreateTaskDialog } from './components/CreateTaskDialog';
 import { WorkflowPanel } from './components/WorkflowPanel';
-import { ExecutionTimeline } from './components/ExecutionTimeline';
 import { WorkflowToolbar } from './components/WorkflowToolbar';
 import { WorkflowVariablesDialog } from './components/WorkflowVariablesDialog';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -36,7 +35,6 @@ export default function App() {
             <main className="flex-1 relative">
               {viewMode === 'canvas' ? <Canvas /> : <ListView />}
             </main>
-            <ExecutionTimeline />
           </div>
 
           {/* Right editor panel */}
@@ -46,7 +44,7 @@ export default function App() {
         <WorkflowVariablesDialog />
         <ConfirmDialog />
         <SettingsDialog />
-        <Toaster theme="dark" richColors />
+<Toaster theme="dark" richColors />
       </div>
     </ReactFlowProvider>
   );

@@ -107,7 +107,7 @@ export const TaskNode = memo(function TaskNode({ data, selected }: NodeProps) {
           }}
           className="rounded p-1 text-zinc-500 opacity-0 transition hover:bg-zinc-700 hover:text-zinc-300 group-hover:opacity-100"
         >
-          <Play className="h-3 w-3" />
+          <FileText className="h-3 w-3" />
         </button>
       </div>
 

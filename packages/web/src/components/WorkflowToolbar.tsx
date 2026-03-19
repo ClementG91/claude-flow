@@ -1,4 +1,4 @@
-import { Play, Square, RotateCcw, AlertTriangle, Variable } from 'lucide-react';
+import { AlertTriangle, Variable } from 'lucide-react';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
 
@@ -47,26 +47,6 @@ export function WorkflowToolbar() {
           )}
         </button>
 
-        <button
-          className="flex items-center gap-1 rounded-lg bg-green-600/20 px-3 py-1.5 text-xs font-medium text-green-400 transition hover:bg-green-600/30"
-          title="Run workflow"
-        >
-          <Play className="h-3 w-3" />
-          Run
-        </button>
-        <button
-          className="flex items-center gap-1 rounded-lg bg-zinc-800 px-3 py-1.5 text-xs text-zinc-400 transition hover:bg-zinc-700"
-          title="Stop workflow"
-        >
-          <Square className="h-3 w-3" />
-          Stop
-        </button>
-        <button
-          className="rounded-lg bg-zinc-800 p-1.5 text-zinc-400 transition hover:bg-zinc-700"
-          title="Reset workflow"
-        >
-          <RotateCcw className="h-3 w-3" />
-        </button>
       </div>
     </div>
   );

@@ -47,9 +47,15 @@ export async function createServer(port?: number) {
   // tRPC handler using fetch adapter
   server.all('/trpc/*', async (req, reply) => {
     const url = new URL(req.url, `http://${req.hostname}`);
+    const headers = new Headers();
+    for (const [key, value] of Object.entries(req.headers)) {
+      if (value !== undefined) {
+        headers.set(key, Array.isArray(value) ? value.join(', ') : value);
+      }
+    }
     const request = new Request(url, {
       method: req.method,
-      headers: req.headers as any,
+      headers,
       body: req.method !== 'GET' && req.method !== 'HEAD' ? JSON.stringify(req.body) : undefined,
     });
 

@@ -16,9 +16,7 @@ interface WorkflowState {
   /** Currently active workflow ID (null = show all tasks) */
   activeWorkflowId: string | null;
   /** Active tab in task editor */
-  editorTab: 'content' | 'schedule' | 'history' | 'config';
-  /** Whether timeline panel is expanded */
-  timelineExpanded: boolean;
+  editorTab: 'content' | 'schedule' | 'config';
   /** Whether minimap is visible */
   minimapVisible: boolean;
   /** Whether variables dialog is open */
@@ -34,8 +32,7 @@ interface WorkflowState {
   setViewMode: (mode: 'canvas' | 'list') => void;
   toggleCreateDialog: () => void;
   setActiveWorkflow: (id: string | null) => void;
-  setEditorTab: (tab: 'content' | 'schedule' | 'history' | 'config') => void;
-  toggleTimeline: () => void;
+  setEditorTab: (tab: 'content' | 'schedule' | 'config') => void;
   toggleMinimap: () => void;
   toggleVariablesDialog: () => void;
   openConfirmDialog: (opts: { title: string; message: string; variant?: 'danger' | 'warning'; onConfirm: () => void }) => void;
@@ -50,7 +47,6 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   createDialogOpen: false,
   activeWorkflowId: null,
   editorTab: 'content',
-  timelineExpanded: false,
   minimapVisible: true,
   variablesDialogOpen: false,
   confirmDialog: { open: false, title: '', message: '', variant: 'danger', onConfirm: null },
@@ -63,7 +59,6 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   toggleCreateDialog: () => set((s) => ({ createDialogOpen: !s.createDialogOpen })),
   setActiveWorkflow: (id) => set({ activeWorkflowId: id }),
   setEditorTab: (tab) => set({ editorTab: tab }),
-  toggleTimeline: () => set((s) => ({ timelineExpanded: !s.timelineExpanded })),
   toggleMinimap: () => set((s) => ({ minimapVisible: !s.minimapVisible })),
   toggleVariablesDialog: () => set((s) => ({ variablesDialogOpen: !s.variablesDialogOpen })),
   openConfirmDialog: (opts) =>

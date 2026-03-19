@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Trash2, FileText, Check, Power, Clock, History, Settings, Lock } from 'lucide-react';
+import { X, Save, Trash2, FileText, Check, Power, Clock, Settings, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
@@ -18,11 +18,6 @@ export function TaskEditor() {
     { taskId: selectedTaskId! },
     { enabled: !!selectedTaskId }
   );
-  const { data: taskHistory } = trpc.history.byTask.useQuery(
-    { taskId: selectedTaskId!, limit: 20 },
-    { enabled: !!selectedTaskId && editorTab === 'history' }
-  );
-
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
   const [description, setDescription] = useState('');
   const [content, setContent] = useState('');
@@ -110,13 +105,13 @@ export function TaskEditor() {
     });
   };
 
-  const handleScheduleUpdate = (field: string, value: any) => {
+  const handleScheduleUpdate = (field: 'cronExpression' | 'enabled', value: string | boolean) => {
     if (!selectedTaskId) return;
-    updateScheduleMutation.mutate({
-      taskId: selectedTaskId,
-      ...(field === 'cronExpression' && { cronExpression: value }),
-      ...(field === 'enabled' && { enabled: value }),
-    });
+    if (field === 'cronExpression' && typeof value === 'string') {
+      updateScheduleMutation.mutate({ taskId: selectedTaskId, cronExpression: value });
+    } else if (field === 'enabled' && typeof value === 'boolean') {
+      updateScheduleMutation.mutate({ taskId: selectedTaskId, enabled: value });
+    }
   };
 
   if (!selectedTaskId) return null;
@@ -124,7 +119,6 @@ export function TaskEditor() {
   const tabs = [
     { id: 'content' as const, label: 'Content', icon: FileText },
     { id: 'schedule' as const, label: 'Schedule', icon: Clock },
-    { id: 'history' as const, label: 'History', icon: History },
     { id: 'config' as const, label: 'Config', icon: Settings },
   ];
 
@@ -250,35 +244,6 @@ export function TaskEditor() {
                       </p>
                     </div>
                   </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* HISTORY TAB */}
-          {editorTab === 'history' && (
-            <div className="p-4">
-              {!taskHistory || taskHistory.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-zinc-500">
-                  <History className="h-8 w-8 text-zinc-700 mb-2" />
-                  <p className="text-sm">No execution history</p>
-                  <p className="text-xs text-zinc-600 mt-1">History will appear after the task runs</p>
-                </div>
-              ) : (
-                <div className="flex flex-col gap-1">
-                  {taskHistory.map((record) => (
-                    <div key={record.id} className="flex items-center gap-3 rounded-lg border border-zinc-800 px-3 py-2">
-                      <span className={`h-2 w-2 rounded-full ${record.status === 'success' ? 'bg-green-500' : record.status === 'failed' ? 'bg-red-500' : 'bg-blue-400'}`} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs text-zinc-300">{new Date(record.startedAt).toLocaleString()}</p>
-                        {record.error && <p className="text-[10px] text-red-400 truncate mt-0.5">{record.error}</p>}
-                      </div>
-                      <span className="text-[10px] text-zinc-500">
-                        {record.durationMs ? `${(record.durationMs / 1000).toFixed(1)}s` : '\u2014'}
-                      </span>
-                      <span className="rounded bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-500">{record.trigger}</span>
-                    </div>
-                  ))}
                 </div>
               )}
             </div>
