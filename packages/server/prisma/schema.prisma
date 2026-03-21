@@ -1,0 +1,134 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ENUMS
+// ============================================
+
+enum SpamRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum CampaignStatus {
+  ACTIVE
+  PAUSED
+  DONE
+}
+
+enum ProspectStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  CONVERTED
+  LOST
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+// ============================================
+// MODELS
+// ============================================
+
+model Campaign {
+  id        String         @id @default(cuid())
+  name      String
+  niche     String?
+  startDate DateTime
+  endDate   DateTime?
+  status    CampaignStatus @default(ACTIVE)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  // Relations
+  prospects Prospect[]
+
+  @@index([status])
+  @@index([startDate])
+}
+
+model Prospect {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  firstName      String?
+  lastName       String?
+  company        String?
+  jobTitle       String?
+  phone          String?
+  linkedinUrl    String?
+  website        String?
+  notes          String?
+  status         ProspectStatus  @default(NEW)
+  tags           String[]        @default([])
+
+  // New fields for CRM enhancement
+  leadScore      Int             @default(0)
+  dealValue      Float?
+  convertedAt    DateTime?
+  firstContactAt DateTime?
+  lastContactAt  DateTime?
+  nextFollowUpAt DateTime?
+  preEngaged     Boolean         @default(false)
+  source         String?
+
+  // Campaign relation
+  campaignId     String?
+  campaign       Campaign?       @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  // Timestamps
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  // Relations
+  messages       Message[]
+
+  @@index([email])
+  @@index([status])
+  @@index([leadScore])
+  @@index([campaignId])
+  @@index([nextFollowUpAt])
+}
+
+model Message {
+  id          String           @id @default(cuid())
+  subject     String?
+  content     String
+  direction   MessageDirection
+  channel     String           @default("email") // email, linkedin, phone, etc.
+  sentAt      DateTime?
+  deliveredAt DateTime?
+  openedAt    DateTime?
+  clickedAt   DateTime?
+  repliedAt   DateTime?
+
+  // New fields for message analytics
+  qualityScore Int?
+  spamRisk     SpamRisk?
+  variant      String?          // A/B testing variant identifier
+
+  // Prospect relation
+  prospectId  String
+  prospect    Prospect         @relation(fields: [prospectId], references: [id], onDelete: Cascade)
+
+  // Timestamps
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([prospectId])
+  @@index([direction])
+  @@index([sentAt])
+  @@index([spamRisk])
+}

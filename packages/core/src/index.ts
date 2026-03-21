@@ -83,4 +83,6 @@ export {
   isTaskReady,
   createWorkflowExecution,
   detectCycles,
+  computeHierarchicalLayout,
+  getTaskIdsFromEdges,
 } from './workflow-engine.js';

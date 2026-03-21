@@ -1,4 +1,4 @@
-import { Search, Clock, Plus, Minus, Lock } from 'lucide-react';
+import { Search, Clock, Plus, Minus, Lock, FolderOpen, Settings } from 'lucide-react';
 import { useState } from 'react';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
@@ -20,13 +20,25 @@ export function Sidebar() {
     ? workflows?.find((w) => w.id === activeWorkflowId)
     : null;
 
-  const filteredTasks = tasks?.filter(
+  // Filter tasks by active workflow first, then by search
+  // Include tasks from both nodePositions AND edges
+  const workflowTaskIds = activeWorkflow
+    ? new Set([
+        ...Object.keys(activeWorkflow.nodePositions ?? {}),
+        ...(activeWorkflow.edges ?? []).flatMap((e) => [e.sourceTaskId, e.targetTaskId]),
+      ])
+    : null;
+  const workflowTasks = workflowTaskIds
+    ? tasks?.filter((t) => workflowTaskIds.has(t.taskId))
+    : tasks;
+
+  const filteredTasks = workflowTasks?.filter(
     (t) =>
       t.taskId.toLowerCase().includes(search.toLowerCase()) ||
       t.frontmatter.description.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalCount = tasks?.length ?? 0;
+  const totalCount = workflowTasks?.length ?? 0;
   const filteredCount = filteredTasks?.length ?? 0;
   const isFiltered = search.length > 0 && filteredCount !== totalCount;
 
@@ -111,6 +123,27 @@ export function Sidebar() {
         {isLoading ? (
           <div className="flex items-center justify-center py-8">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-claude-500 border-t-transparent" />
+          </div>
+        ) : totalCount === 0 ? (
+          <div className="flex flex-col items-center gap-3 px-4 py-8 text-center">
+            <FolderOpen className="h-8 w-8 text-zinc-600" />
+            <div>
+              <p className="text-sm font-medium text-zinc-400">No tasks detected</p>
+              <p className="mt-1.5 text-xs text-zinc-500 leading-relaxed">
+                Create scheduled tasks in Claude Desktop, or update the tasks directory in
+                <button
+                  onClick={() => {
+                    const { toggleSettingsDialog } = useWorkflowStore.getState();
+                    toggleSettingsDialog();
+                  }}
+                  className="mx-1 inline-flex items-center gap-0.5 text-claude-500 hover:text-claude-400"
+                >
+                  <Settings className="h-3 w-3" />
+                  Settings
+                </button>
+                to point to your SKILL.md files.
+              </p>
+            </div>
           </div>
         ) : filteredTasks?.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-3 py-8 text-center">

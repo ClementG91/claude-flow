@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { GitBranch, Plus, Trash2, Copy, Edit2, Check, X } from 'lucide-react';
+import { GitBranch, Plus, Trash2, Copy, Edit2, Check, X, Zap } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
@@ -41,6 +41,22 @@ export function WorkflowPanel() {
   const duplicateMutation = trpc.workflows.duplicate.useMutation({
     onSuccess: () => utils.workflows.list.invalidate(),
   });
+
+  const { data: suggestions } = trpc.workflows.suggestFromTasks.useQuery();
+  const [isOrganizing, setIsOrganizing] = useState(false);
+
+  const autoOrganize = async () => {
+    if (!suggestions?.suggestions.length) return;
+    setIsOrganizing(true);
+    try {
+      for (const s of suggestions.suggestions) {
+        await createMutation.mutateAsync({ name: s.name, description: s.description });
+      }
+      toast.success(`Created ${suggestions.suggestions.length} workflow(s)`);
+    } finally {
+      setIsOrganizing(false);
+    }
+  };
 
   return (
     <div className="border-b border-zinc-800 bg-zinc-950">
@@ -89,6 +105,25 @@ export function WorkflowPanel() {
           >
             <X className="h-3.5 w-3.5" />
           </button>
+        </div>
+      )}
+
+      {/* Unassigned tasks banner */}
+      {(suggestions?.unassigned.length ?? 0) > 0 && (
+        <div className="mx-3 mb-2 flex items-center justify-between rounded-lg bg-amber-500/10 px-2.5 py-1.5">
+          <span className="text-[10px] text-amber-400">
+            {suggestions!.unassigned.length} unassigned task{suggestions!.unassigned.length !== 1 ? 's' : ''}
+          </span>
+          {(suggestions?.suggestions.length ?? 0) > 0 && (
+            <button
+              onClick={autoOrganize}
+              disabled={isOrganizing}
+              className="flex items-center gap-1 rounded bg-amber-500/20 px-2 py-0.5 text-[10px] text-amber-300 transition hover:bg-amber-500/30 disabled:opacity-50"
+            >
+              <Zap className="h-2.5 w-2.5" />
+              {isOrganizing ? 'Creating...' : 'Auto-organize'}
+            </button>
+          )}
         </div>
       )}
 
@@ -152,7 +187,7 @@ export function WorkflowPanel() {
                   >
                     {wf.name}
                   </span>
-                  <span className="text-[10px] text-zinc-600">{wf.edges.length} links</span>
+                  <span className="text-[10px] text-zinc-600">{new Set([...Object.keys(wf.nodePositions ?? {}), ...(wf.edges ?? []).flatMap((e: { sourceTaskId: string; targetTaskId: string }) => [e.sourceTaskId, e.targetTaskId])]).size} tasks</span>
                 </button>
                 <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100">
                   <button

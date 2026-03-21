@@ -25,6 +25,8 @@ interface WorkflowState {
   confirmDialog: ConfirmDialogState;
   /** Whether settings dialog is open */
   settingsDialogOpen: boolean;
+  /** Whether sidebar is collapsed */
+  sidebarCollapsed: boolean;
 
   selectTask: (taskId: string | null) => void;
   openEditor: (taskId: string) => void;
@@ -38,6 +40,7 @@ interface WorkflowState {
   openConfirmDialog: (opts: { title: string; message: string; variant?: 'danger' | 'warning'; onConfirm: () => void }) => void;
   closeConfirmDialog: () => void;
   toggleSettingsDialog: () => void;
+  toggleSidebar: () => void;
 }
 
 export const useWorkflowStore = create<WorkflowState>((set) => ({
@@ -51,6 +54,7 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
   variablesDialogOpen: false,
   confirmDialog: { open: false, title: '', message: '', variant: 'danger', onConfirm: null },
   settingsDialogOpen: false,
+  sidebarCollapsed: false,
 
   selectTask: (taskId) => set({ selectedTaskId: taskId }),
   openEditor: (taskId) => set({ selectedTaskId: taskId, editorOpen: true, editorTab: 'content' }),
@@ -76,4 +80,5 @@ export const useWorkflowStore = create<WorkflowState>((set) => ({
       confirmDialog: { open: false, title: '', message: '', variant: 'danger', onConfirm: null },
     }),
   toggleSettingsDialog: () => set((s) => ({ settingsDialogOpen: !s.settingsDialogOpen })),
+  toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
 }));

@@ -7,7 +7,11 @@ Claude Flow gives you a unified dashboard to manage, connect, and monitor all yo
 ## Features
 
 - **Visual Canvas** — Drag-and-drop workflow editor powered by React Flow. Arrange tasks as nodes, connect them with edges, and build automation pipelines visually.
+- **Auto-Layout** — Workflows with edges automatically generate node positions using topological sort and hierarchical layout. No manual placement needed.
+- **Auto-Detect & Organize** — New tasks from Claude Desktop are detected automatically. Unassigned tasks are grouped by naming convention and surfaced with an "Auto-organize" button to create workflows in one click.
+- **Grouped All Tasks View** — The "All Tasks" canvas groups tasks visually by workflow with labeled section headers, giving you a bird's-eye view of your entire automation system.
 - **Conditional Edges** — Connect tasks with "always", "on success", or "on failure" conditions. Right-click any edge to change its type or delete it.
+- **Collapsible Sidebar** — Toggle the sidebar to maximize canvas space. Sidebar shows task counts per workflow and search across all tasks.
 - **Task Editor** — Four-tab editor (Content, Schedule, History, Config) with real-time save, Ctrl+S shortcut, and inline cron builder with 12 presets.
 - **Claude Desktop Config** — Control permission mode (ask / auto-accept / plan / skip all), model selection, jitter toggle, and view approved MCP tools — all from the UI.
 - **Multi-Directory Discovery** — Automatically discovers tasks from `~/.claude/scheduled-tasks/` and any additional directories referenced in Claude Desktop's config.
@@ -98,20 +102,24 @@ The server exposes a tRPC API at `/trpc/*` with the following routers:
 | Router           | Endpoints                                             |
 | ---------------- | ----------------------------------------------------- |
 | `tasks`          | list, getById, create, update, delete, checkId        |
-| `workflows`      | list, getById, create, update, updateLayout, updateVariables, duplicate, delete |
-| `schedule`       | getAll, getByTaskId, updateLocal, syncFromClaudeDesktop |
+| `workflows`      | list, getById, create, update, updateLayout, updateVariables, duplicate, delete, autoLayout, suggestFromTasks |
+| `schedule`       | getAll, getByTaskId, updateLocal, syncFromClaudeDesktop, syncFromMcp |
 | `settings`       | get, update                                           |
 | `claudeDesktop`  | getTaskConfig, updateTaskConfig, listAvailableModels  |
 
 ## How It Works
 
-1. **Task Discovery** — On startup, the server scans your `tasksDirectory` for folders containing `SKILL.md` files. It also reads Claude Desktop's `scheduled-tasks.json` to discover tasks in other directories.
+1. **Task Discovery** — On startup, the server scans your `tasksDirectory` for folders containing `SKILL.md` files. It also reads Claude Desktop's `scheduled-tasks.json` to discover tasks in other directories. Unassigned tasks are detected and logged.
 
-2. **Schedule Sync** — Cron expressions and run metadata are imported from Claude Desktop's config and cached locally for fast access.
+2. **Schedule Sync** — Cron expressions and run metadata are imported from Claude Desktop's config and cached locally for fast access. Human-readable schedule descriptions are generated automatically (e.g., "Weekdays at 09:00", "1st of each month at 09:00").
 
-3. **Visual Editing** — The React Flow canvas lets you position tasks as nodes and draw connections (edges) between them. Positions and edges are persisted to `config.json` with an atomic write lock to prevent corruption.
+3. **Auto-Layout & Grouping** — When you open a workflow that has edges but no node positions, Claude Flow auto-generates a hierarchical left-to-right layout using topological sort. The "All Tasks" view groups tasks by workflow with labeled headers.
 
-4. **Config Control** — The Config tab reads and writes directly to Claude Desktop's `scheduled-tasks.json`, letting you change permission modes, models, and jitter settings without opening Claude Desktop.
+4. **Auto-Detect Workflows** — The `suggestFromTasks` endpoint identifies tasks not in any workflow and groups them by naming prefix (e.g., `veille-*`, `bilan-*`). The UI surfaces an "Auto-organize" button to create suggested workflows with one click.
+
+5. **Visual Editing** — The React Flow canvas lets you position tasks as nodes and draw connections (edges) between them. Positions and edges are persisted to `config.json` with an atomic write lock to prevent corruption.
+
+6. **Config Control** — The Config tab reads and writes directly to Claude Desktop's `scheduled-tasks.json`, letting you change permission modes, models, and jitter settings without opening Claude Desktop.
 
 ## Development
 
@@ -139,10 +147,14 @@ pnpm lint
 
 ## Roadmap
 
+- [x] Auto-layout workflows from edges (topological sort)
+- [x] Auto-detect unassigned tasks and suggest workflows
+- [x] Grouped "All Tasks" view with workflow headers
+- [x] Collapsible sidebar
 - [ ] Smart cron suggestions when connecting tasks
-- [ ] Auto-generate workflow edges from task cron schedules
 - [ ] Task templates and marketplace
 - [ ] Integration with Claude Desktop execution logs
+- [ ] Workflow execution engine (run tasks in sequence)
 
 ## License
 

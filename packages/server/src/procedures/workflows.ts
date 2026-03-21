@@ -2,7 +2,14 @@ import { z } from 'zod';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { router, publicProcedure } from '../trpc.js';
-import { loadConfig, modifyConfig, getConfigDirectory } from '@claude-flow/core';
+import {
+  loadConfig,
+  modifyConfig,
+  getConfigDirectory,
+  computeHierarchicalLayout,
+  getTaskIdsFromEdges,
+  scanTasks,
+} from '@claude-flow/core';
 import type { Workflow } from '@claude-flow/core';
 
 const nodePositionSchema = z.object({
@@ -219,6 +226,94 @@ export const workflowsRouter = router({
 
       return result!;
     }),
+
+  /**
+   * Auto-generate nodePositions for a workflow based on its edges.
+   * Uses topological sort + hierarchical layout.
+   */
+  autoLayout: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ input }) => {
+      let result: Workflow | undefined;
+      await modifyConfig((config) => {
+        const idx = config.workflows.findIndex((w) => w.id === input.id);
+        if (idx === -1) throw new Error(`Workflow "${input.id}" not found`);
+
+        const wf = config.workflows[idx];
+        const taskIds = getTaskIdsFromEdges(wf.edges);
+        if (taskIds.length === 0) return;
+
+        const positions = computeHierarchicalLayout(wf.edges, taskIds);
+        config.workflows[idx].nodePositions = positions;
+        config.workflows[idx].updatedAt = new Date().toISOString();
+        result = config.workflows[idx];
+      });
+      return result ?? null;
+    }),
+
+  /**
+   * Find tasks not assigned to any workflow and suggest groupings.
+   */
+  suggestFromTasks: publicProcedure.query(async () => {
+    const config = await loadConfig();
+    const tasks = await scanTasks(config.tasksDirectory);
+
+    // Collect all task IDs that are in any workflow
+    const assigned = new Set<string>();
+    for (const wf of config.workflows) {
+      for (const id of Object.keys(wf.nodePositions ?? {})) {
+        assigned.add(id);
+      }
+      for (const e of wf.edges ?? []) {
+        assigned.add(e.sourceTaskId);
+        assigned.add(e.targetTaskId);
+      }
+    }
+
+    const unassigned = tasks
+      .map((t) => t.taskId)
+      .filter((id) => !assigned.has(id));
+
+    if (unassigned.length === 0) {
+      return { unassigned: [], suggestions: [] };
+    }
+
+    // Group by naming prefix (first segment before '-')
+    const groups = new Map<string, string[]>();
+    for (const id of unassigned) {
+      const prefix = id.split('-')[0];
+      if (!groups.has(prefix)) groups.set(prefix, []);
+      groups.get(prefix)!.push(id);
+    }
+
+    const suggestions: Array<{ name: string; description: string; taskIds: string[] }> = [];
+    const remaining: string[] = [];
+
+    for (const [prefix, ids] of groups) {
+      if (ids.length >= 2) {
+        // Suggest a workflow for groups of 2+
+        const name = prefix.charAt(0).toUpperCase() + prefix.slice(1) + ' Pipeline';
+        suggestions.push({
+          name,
+          description: `Auto-detected group of ${ids.length} tasks with prefix "${prefix}-"`,
+          taskIds: ids.sort(),
+        });
+      } else {
+        remaining.push(...ids);
+      }
+    }
+
+    // Remaining singletons go into a generic suggestion if 2+
+    if (remaining.length >= 2) {
+      suggestions.push({
+        name: 'Miscellaneous',
+        description: `${remaining.length} ungrouped tasks`,
+        taskIds: remaining.sort(),
+      });
+    }
+
+    return { unassigned, suggestions };
+  }),
 
   /**
    * Delete a workflow.

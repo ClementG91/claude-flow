@@ -128,6 +128,88 @@ export function createWorkflowExecution(workflow: Workflow): WorkflowExecution {
 /**
  * Detect cycles in the workflow graph.
  */
+/**
+ * Compute hierarchical left-to-right layout positions from edges.
+ * Uses topological sort to determine depth levels, then spreads
+ * tasks vertically within each level.
+ */
+export function computeHierarchicalLayout(
+  edges: WorkflowEdge[],
+  taskIds: string[],
+  options: { xSpacing?: number; ySpacing?: number; startX?: number; startY?: number } = {}
+): Record<string, { x: number; y: number }> {
+  const { xSpacing = 320, ySpacing = 200, startX = 80, startY = 80 } = options;
+
+  if (taskIds.length === 0) return {};
+
+  // If no edges, lay out in a grid
+  if (edges.length === 0) {
+    const cols = 3;
+    const positions: Record<string, { x: number; y: number }> = {};
+    taskIds.forEach((id, i) => {
+      positions[id] = {
+        x: startX + (i % cols) * xSpacing,
+        y: startY + Math.floor(i / cols) * ySpacing,
+      };
+    });
+    return positions;
+  }
+
+  // Compute depth (longest path from a root) for each task
+  const order = resolveExecutionOrder(edges, taskIds);
+  const depth = new Map<string, number>();
+
+  for (const id of order) {
+    const parentEdges = edges.filter((e) => e.targetTaskId === id);
+    if (parentEdges.length === 0) {
+      depth.set(id, 0);
+    } else {
+      const maxParentDepth = Math.max(
+        ...parentEdges.map((e) => depth.get(e.sourceTaskId) ?? 0)
+      );
+      depth.set(id, maxParentDepth + 1);
+    }
+  }
+
+  // Group tasks by depth level
+  const levels = new Map<number, string[]>();
+  for (const id of order) {
+    const d = depth.get(id) ?? 0;
+    if (!levels.has(d)) levels.set(d, []);
+    levels.get(d)!.push(id);
+  }
+
+  // Assign positions: x by depth, y centered per level
+  const positions: Record<string, { x: number; y: number }> = {};
+  for (const [d, ids] of levels) {
+    const totalHeight = (ids.length - 1) * ySpacing;
+    const offsetY = startY - totalHeight / 2;
+    ids.forEach((id, i) => {
+      positions[id] = {
+        x: startX + d * xSpacing,
+        y: offsetY + i * ySpacing + (ids.length > 1 ? totalHeight / 2 : 0),
+      };
+    });
+  }
+
+  return positions;
+}
+
+/**
+ * Extract all unique task IDs referenced in a workflow's edges.
+ */
+export function getTaskIdsFromEdges(edges: WorkflowEdge[]): string[] {
+  const ids = new Set<string>();
+  for (const e of edges) {
+    ids.add(e.sourceTaskId);
+    ids.add(e.targetTaskId);
+  }
+  return [...ids];
+}
+
+/**
+ * Detect cycles in the workflow graph.
+ */
 export function detectCycles(edges: WorkflowEdge[]): string[][] {
   const taskIds = new Set<string>();
   edges.forEach((e) => {

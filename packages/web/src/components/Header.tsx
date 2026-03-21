@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Workflow, LayoutGrid, LayoutList, Plus, RefreshCw, Settings } from 'lucide-react';
+import { Workflow, LayoutGrid, LayoutList, RefreshCw, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkflowStore } from '../stores/workflow';
 import { trpc } from '../lib/trpc';
 
 export function Header() {
-  const { viewMode, setViewMode, toggleCreateDialog, toggleSettingsDialog } = useWorkflowStore();
+  const { viewMode, setViewMode, toggleSettingsDialog } = useWorkflowStore();
   const utils = trpc.useUtils();
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -90,14 +90,10 @@ export function Header() {
           </button>
         </div>
 
-        {/* New Task button */}
-        <button
-          onClick={toggleCreateDialog}
-          className="flex items-center gap-1.5 rounded-lg bg-claude-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-claude-700 active:scale-95"
-        >
-          <Plus className="h-4 w-4" />
-          New Task
-        </button>
+        {/* Sync indicator */}
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-2 text-[11px] text-zinc-500" title="Tasks are managed in Claude Desktop. Use the refresh button to sync.">
+          Managed by Claude Desktop
+        </div>
       </div>
     </header>
   );

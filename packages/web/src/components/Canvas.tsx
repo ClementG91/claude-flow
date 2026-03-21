@@ -15,14 +15,26 @@ import {
   type EdgeMouseHandler,
   MarkerType,
 } from '@xyflow/react';
-import { Map as MapIcon, EyeOff } from 'lucide-react';
+import { Map as MapIcon, EyeOff, FolderOpen } from 'lucide-react';
 import '@xyflow/react/dist/style.css';
 import { TaskNode, type TaskNodeData } from './TaskNode';
 import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
 
+/** Workflow group label node rendered as a header */
+function WorkflowLabelNode({ data }: { data: { label: string; taskCount: number } }) {
+  return (
+    <div className="flex items-center gap-2 rounded-lg border border-zinc-700/50 bg-zinc-900/80 px-4 py-2 shadow-lg">
+      <div className="h-2 w-2 rounded-full bg-claude-500" />
+      <span className="text-sm font-semibold text-zinc-200">{data.label}</span>
+      <span className="text-[10px] text-zinc-500">{data.taskCount} tasks</span>
+    </div>
+  );
+}
+
 const nodeTypes = {
   task: TaskNode,
+  workflowLabel: WorkflowLabelNode,
 };
 
 /** Edge condition type matching the backend schema */
@@ -209,6 +221,14 @@ export function Canvas() {
     [activeWorkflowId, updateLayoutMutation],
   );
 
+  // Auto-layout mutation for workflows with edges but no nodePositions
+  const autoLayoutMutation = trpc.workflows.autoLayout.useMutation({
+    onSuccess: () => {
+      utils.workflows.list.invalidate();
+    },
+  });
+  const autoLayoutTriggered = useRef<Set<string>>(new Set());
+
   // Convert tasks to nodes
   useEffect(() => {
     if (!tasks) return;
@@ -217,38 +237,146 @@ export function Canvas() {
       ? workflows?.find((w) => w.id === activeWorkflowId)
       : workflows?.[0];
     const savedPositions = activeWorkflow?.nodePositions ?? {};
+    const edges = activeWorkflow?.edges ?? [];
 
-    // Filter tasks by active workflow if one is selected
-    const visibleTasks = activeWorkflowId && activeWorkflow
-      ? tasks.filter((t) => t.taskId in savedPositions)
+    // Collect all task IDs referenced by this workflow (nodePositions + edges)
+    let workflowTaskIds: Set<string> | null = null;
+    if (activeWorkflowId && activeWorkflow) {
+      workflowTaskIds = new Set([
+        ...Object.keys(savedPositions),
+        ...edges.flatMap((e) => [e.sourceTaskId, e.targetTaskId]),
+      ]);
+    }
+
+    // If workflow has edges but missing nodePositions, trigger auto-layout
+    if (
+      activeWorkflowId &&
+      edges.length > 0 &&
+      Object.keys(savedPositions).length < (workflowTaskIds?.size ?? 0) &&
+      !autoLayoutTriggered.current.has(activeWorkflowId)
+    ) {
+      autoLayoutTriggered.current.add(activeWorkflowId);
+      autoLayoutMutation.mutate({ id: activeWorkflowId });
+    }
+
+    // Filter tasks: show workflow tasks (from both positions and edges) or all
+    const visibleTasks = workflowTaskIds
+      ? tasks.filter((t) => workflowTaskIds!.has(t.taskId))
       : tasks;
 
-    const fallbackPositions = autoLayout(visibleTasks.map((t) => t.taskId));
+    let newNodes: Node[];
 
-    const newNodes: Node[] = visibleTasks.map((task) => {
-      const schedule = scheduleData?.schedules?.[task.taskId];
+    if (!activeWorkflowId && workflows && workflows.length > 0) {
+      // "All Tasks" view: group tasks by workflow visually
+      const cols = 3;
+      const spacingX = 320;
+      const spacingY = 200;
+      const groupGap = 60; // gap between workflow groups
+      const labelHeight = 50;
+      const allNodes: Node[] = [];
 
-      return {
-        id: task.taskId,
-        type: 'task' as const,
-        position: savedPositions[task.taskId] ?? fallbackPositions[task.taskId] ?? { x: 0, y: 0 },
-        data: {
-          taskId: task.taskId,
-          description: task.frontmatter.description,
-          contentPreview: task.content.slice(0, 100),
-          cronExpression: schedule?.cronExpression,
-          schedule: schedule?.schedule,
-          enabled: schedule?.enabled,
-          readonly: task.readonly,
-          nextRunAt: schedule?.nextRunAt,
-          lastRunAt: schedule?.lastRunAt,
-        } satisfies TaskNodeData,
-      };
-    });
+      // Build a map: taskId -> workflow name
+      const taskToWorkflow = new Map<string, string>();
+      for (const wf of workflows) {
+        const wfTaskIds = new Set([
+          ...Object.keys(wf.nodePositions ?? {}),
+          ...(wf.edges ?? []).flatMap((e) => [e.sourceTaskId, e.targetTaskId]),
+        ]);
+        for (const id of wfTaskIds) {
+          taskToWorkflow.set(id, wf.name);
+        }
+      }
+
+      // Group tasks by workflow, preserving workflow order
+      const groups: Array<{ name: string; tasks: typeof visibleTasks }> = [];
+      const seen = new Set<string>();
+      for (const wf of workflows) {
+        const wfTaskIds = new Set([
+          ...Object.keys(wf.nodePositions ?? {}),
+          ...(wf.edges ?? []).flatMap((e) => [e.sourceTaskId, e.targetTaskId]),
+        ]);
+        const groupTasks = visibleTasks.filter((t) => wfTaskIds.has(t.taskId));
+        if (groupTasks.length > 0) {
+          groups.push({ name: wf.name, tasks: groupTasks });
+          groupTasks.forEach((t) => seen.add(t.taskId));
+        }
+      }
+      // Unassigned tasks
+      const unassigned = visibleTasks.filter((t) => !seen.has(t.taskId));
+      if (unassigned.length > 0) {
+        groups.push({ name: 'Unassigned', tasks: unassigned });
+      }
+
+      let currentY = 50;
+      for (const group of groups) {
+        // Add label node
+        allNodes.push({
+          id: `label-${group.name}`,
+          type: 'workflowLabel',
+          position: { x: 50, y: currentY },
+          data: { label: group.name, taskCount: group.tasks.length },
+          draggable: false,
+          selectable: false,
+        });
+        currentY += labelHeight;
+
+        // Add task nodes in grid
+        group.tasks.forEach((task, i) => {
+          const col = i % cols;
+          const row = Math.floor(i / cols);
+          const schedule = scheduleData?.schedules?.[task.taskId];
+          allNodes.push({
+            id: task.taskId,
+            type: 'task' as const,
+            position: { x: col * spacingX + 50, y: currentY + row * spacingY },
+            data: {
+              taskId: task.taskId,
+              description: task.frontmatter.description,
+              contentPreview: task.content.slice(0, 100),
+              cronExpression: schedule?.cronExpression,
+              schedule: schedule?.schedule,
+              enabled: schedule?.enabled,
+              readonly: task.readonly,
+              nextRunAt: schedule?.nextRunAt,
+              lastRunAt: schedule?.lastRunAt,
+            } satisfies TaskNodeData,
+          });
+        });
+        const rows = Math.ceil(group.tasks.length / cols);
+        currentY += rows * spacingY + groupGap;
+      }
+
+      newNodes = allNodes;
+    } else {
+      // Specific workflow view
+      const fallbackPositions = autoLayout(visibleTasks.map((t) => t.taskId));
+
+      newNodes = visibleTasks.map((task) => {
+        const schedule = scheduleData?.schedules?.[task.taskId];
+
+        return {
+          id: task.taskId,
+          type: 'task' as const,
+          position: savedPositions[task.taskId] ?? fallbackPositions[task.taskId] ?? { x: 0, y: 0 },
+          data: {
+            taskId: task.taskId,
+            description: task.frontmatter.description,
+            contentPreview: task.content.slice(0, 100),
+            cronExpression: schedule?.cronExpression,
+            schedule: schedule?.schedule,
+            enabled: schedule?.enabled,
+            readonly: task.readonly,
+            nextRunAt: schedule?.nextRunAt,
+            lastRunAt: schedule?.lastRunAt,
+          } satisfies TaskNodeData,
+        };
+      });
+    }
 
     setNodes(newNodes);
 
-    if (activeWorkflow?.edges) {
+    // Only show edges when a specific workflow is selected (not "All Tasks")
+    if (activeWorkflowId && activeWorkflow?.edges) {
       const newEdges: Edge[] = activeWorkflow.edges.map((e) => ({
         id: e.id,
         source: e.sourceTaskId,
@@ -358,6 +486,24 @@ export function Canvas() {
   const onPaneClick = useCallback(() => {
     setEdgeMenu(null);
   }, []);
+
+  // Empty state when no tasks exist
+  if (tasks && tasks.length === 0) {
+    return (
+      <div className="flex h-full items-center justify-center bg-zinc-950">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <FolderOpen className="h-12 w-12 text-zinc-700" />
+          <div>
+            <p className="text-lg font-medium text-zinc-400">No tasks detected</p>
+            <p className="mt-2 max-w-sm text-sm text-zinc-500 leading-relaxed">
+              Create scheduled tasks in Claude Desktop, then click the refresh button to sync them here.
+              You can also update the tasks directory in Settings.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>

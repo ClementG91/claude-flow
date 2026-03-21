@@ -10,7 +10,10 @@ export function WorkflowToolbar() {
 
   if (!activeWorkflow) return null;
 
-  const taskCount = Object.keys(activeWorkflow.nodePositions).length;
+  const taskCount = new Set([
+    ...Object.keys(activeWorkflow.nodePositions ?? {}),
+    ...(activeWorkflow.edges ?? []).flatMap((e: { sourceTaskId: string; targetTaskId: string }) => [e.sourceTaskId, e.targetTaskId]),
+  ]).size;
   const edgeCount = activeWorkflow.edges.length;
   const varCount = Object.keys(activeWorkflow.variables ?? {}).length;
 

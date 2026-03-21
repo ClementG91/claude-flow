@@ -2,9 +2,9 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "claude-flow",
-      "runtimeExecutable": "node",
-      "runtimeArgs": ["apps/cli/dist/index.js", "start", "--no-open"],
+      "name": "claude-flow-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["dev"],
       "port": 3710
     }
   ]

@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import fastifyStatic from '@fastify/static';
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch';
 import { appRouter } from './router.js';
-import { loadConfig, syncFromClaudeDesktop, loadScheduleCache, updateScheduleCache, saveScheduleCache } from '@claude-flow/core';
+import { loadConfig, syncFromClaudeDesktop, loadScheduleCache, updateScheduleCache, saveScheduleCache, scanTasks, getTaskIdsFromEdges } from '@claude-flow/core';
 import { watchTasksDirectory } from './watcher.js';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -121,6 +121,25 @@ export async function createServer(port?: number) {
     }
   } catch (err) {
     server.log.warn({ err }, 'Could not sync schedule data from Claude Desktop');
+  }
+
+  // Detect unassigned tasks
+  try {
+    const tasks = await scanTasks(config.tasksDirectory);
+    const assigned = new Set<string>();
+    for (const wf of config.workflows) {
+      for (const id of Object.keys(wf.nodePositions ?? {})) assigned.add(id);
+      for (const id of getTaskIdsFromEdges(wf.edges ?? [])) assigned.add(id);
+    }
+    const unassigned = tasks.filter((t) => !assigned.has(t.taskId));
+    if (unassigned.length > 0) {
+      server.log.warn(
+        { count: unassigned.length, tasks: unassigned.map((t) => t.taskId) },
+        'Unassigned tasks detected — use the UI to organize them into workflows'
+      );
+    }
+  } catch {
+    // Non-critical
   }
 
   return { server, port: serverPort };
