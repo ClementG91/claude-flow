@@ -105,7 +105,7 @@ The server exposes a tRPC API at `/trpc/*` with the following routers:
 | `workflows`      | list, getById, create, update, updateLayout, updateVariables, duplicate, delete, autoLayout, suggestFromTasks |
 | `schedule`       | getAll, getByTaskId, updateLocal, syncFromClaudeDesktop, syncFromMcp |
 | `settings`       | get, update                                           |
-| `claudeDesktop`  | getTaskConfig, updateTaskConfig, listAvailableModels  |
+| `claudeDesktop`  | getTaskConfig, updateTaskConfig, listAvailableModels, getDiscoveryDiagnostics |
 
 ## How It Works
 
@@ -120,6 +120,16 @@ The server exposes a tRPC API at `/trpc/*` with the following routers:
 5. **Visual Editing** — The React Flow canvas lets you position tasks as nodes and draw connections (edges) between them. Positions and edges are persisted to `config.json` with an atomic write lock to prevent corruption.
 
 6. **Config Control** — The Config tab reads and writes directly to Claude Desktop's `scheduled-tasks.json`, letting you change permission modes, models, and jitter settings without opening Claude Desktop.
+
+## Compatibility Notes (Claude Desktop / Claude Code / MCP)
+
+- **Claude Desktop & Claude Code sessions** — Claude Flow scans Claude's session folders for `scheduled-tasks.json` files and merges task metadata across sessions.
+- **Future session types** — Any Claude session directory ending in `-sessions` is discovered automatically, so newer agent runtimes can be picked up without code changes.
+- **Config roots searched** — Claude Flow checks `~/.claude` plus platform-specific Claude config roots; on Linux it supports both `Claude` and `claude` casing under `XDG_CONFIG_HOME` or `~/.config`.
+- **Custom config root** — Set `CLAUDE_CONFIG_DIR` to point Claude Flow to a non-standard Claude configuration directory.
+- **MCP sync** — You can still push authoritative schedule data from MCP with `schedule.syncFromMcp`; Claude Flow merges this with existing local schedule cache entries.
+- **Diagnostics** — Use `claudeDesktop.getDiscoveryDiagnostics` to inspect config roots, detected session directories, and discovered `scheduled-tasks.json` files.
+- **Model discovery** — `claudeDesktop.listAvailableModels` is derived from models currently found in Claude schedule files (with fallback defaults when none are detected).
 
 ## Development
 

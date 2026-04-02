@@ -42,11 +42,11 @@ export async function saveScheduleCache(cache: ScheduleCache): Promise<void> {
  * @param mcpData - Array of task schedule data from MCP list_scheduled_tasks
  */
 export function updateScheduleCache(
-  _existing: ScheduleCache,
+  existing: ScheduleCache,
   mcpData: Array<{ taskId: string } & TaskSchedule>
 ): ScheduleCache {
-  // Full replace — only keep tasks from the latest sync
-  const schedules: Record<string, TaskSchedule> = {};
+  // Merge with existing so local-only metadata for untouched tasks is preserved.
+  const schedules: Record<string, TaskSchedule> = { ...existing.schedules };
 
   for (const item of mcpData) {
     schedules[item.taskId] = {
