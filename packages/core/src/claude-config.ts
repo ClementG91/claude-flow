@@ -161,3 +161,27 @@ export async function updateTaskConfig(
 
   return task;
 }
+
+/**
+ * List model IDs currently detected in Claude scheduled tasks.
+ */
+export async function listDetectedModels(): Promise<Array<{ id: string; label: string }>> {
+  const { tasks } = await loadClaudeDesktopConfig();
+  const models = new Set<string>();
+
+  for (const task of tasks.values()) {
+    if (task.model?.trim()) {
+      models.add(task.model.trim());
+    }
+  }
+
+  return [...models]
+    .sort((a, b) => a.localeCompare(b))
+    .map((id) => ({
+      id,
+      label: id
+        .split('-')
+        .map((part) => (part.length > 0 ? part[0].toUpperCase() + part.slice(1) : part))
+        .join(' '),
+    }));
+}

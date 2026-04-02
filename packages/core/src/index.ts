@@ -64,6 +64,8 @@ export {
 export {
   findClaudeScheduleFiles,
   syncFromClaudeDesktop,
+  getClaudeDiscoveryDiagnostics,
+  type ClaudeDiscoveryDiagnostics,
 } from './claude-sync.js';
 
 // Claude Desktop config (read/write scheduled-tasks.json)
@@ -71,6 +73,7 @@ export {
   loadClaudeDesktopConfig,
   getTaskConfig,
   updateTaskConfig,
+  listDetectedModels,
   type ClaudeDesktopTaskConfig,
   type TaskConfigUpdate,
 } from './claude-config.js';
