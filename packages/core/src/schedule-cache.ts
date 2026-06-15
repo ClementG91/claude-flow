@@ -47,6 +47,7 @@ export function updateScheduleCache(
   existing: ScheduleCache,
   mcpData: Array<{ taskId: string } & TaskSchedule>
 ): ScheduleCache {
+  // Merge with existing so local-only metadata for untouched tasks is preserved.
   const schedules: Record<string, TaskSchedule> = { ...existing.schedules };
 
   for (const item of mcpData) {

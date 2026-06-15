@@ -3,7 +3,18 @@ import { router, publicProcedure } from '../trpc.js';
 import {
   getTaskConfig,
   updateTaskConfig,
+  listDetectedModels,
+  getClaudeDiscoveryDiagnostics,
 } from '@claude-flow/core';
+
+const FALLBACK_MODELS = [
+  { id: 'claude-fable-5', label: 'Claude Fable 5 (most capable, GA Jun 2026)' },
+  { id: 'claude-opus-4-8', label: 'Claude Opus 4.8' },
+  { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (recommended)' },
+  { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
+  { id: 'claude-opus-4-7', label: 'Claude Opus 4.7 (legacy)' },
+  { id: 'claude-opus-4-6', label: 'Claude Opus 4.6 (legacy)' },
+];
 
 export const claudeDesktopRouter = router({
   /**
@@ -60,14 +71,18 @@ export const claudeDesktopRouter = router({
     }),
 
   /**
-   * Return a hardcoded list of available Claude models.
+   * Return model IDs discovered in local Claude scheduled tasks.
+   * Falls back to a baseline list when no model has been detected yet.
    */
-  listAvailableModels: publicProcedure.query(() => {
-    return [
-      { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (most capable)' },
-      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (recommended)' },
-      { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
-      { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-    ];
+  listAvailableModels: publicProcedure.query(async () => {
+    const detected = await listDetectedModels();
+    return detected.length > 0 ? detected : FALLBACK_MODELS;
+  }),
+
+  /**
+   * Return Claude config/session discovery diagnostics.
+   */
+  getDiscoveryDiagnostics: publicProcedure.query(async () => {
+    return getClaudeDiscoveryDiagnostics();
   }),
 });

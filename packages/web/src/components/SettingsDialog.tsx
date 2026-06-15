@@ -9,6 +9,9 @@ export function SettingsDialog() {
   const { data: settings, isLoading } = trpc.settings.get.useQuery(undefined, {
     enabled: settingsDialogOpen,
   });
+  const { data: diagnostics } = trpc.claudeDesktop.getDiscoveryDiagnostics.useQuery(undefined, {
+    enabled: settingsDialogOpen,
+  });
   const utils = trpc.useUtils();
 
   const [tasksDirectory, setTasksDirectory] = useState('');
@@ -123,7 +126,39 @@ export function SettingsDialog() {
                       {settings?.configFilePath ?? '~/.claude-flow/config.json'}
                     </span>
                   </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] text-zinc-500 shrink-0">Claude roots:</span>
+                    <span className="font-mono text-[10px] text-zinc-400 truncate">
+                      {diagnostics?.roots.length ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] text-zinc-500 shrink-0">Session dirs:</span>
+                    <span className="font-mono text-[10px] text-zinc-400 truncate">
+                      {diagnostics?.sessionDirs.length ?? 0}
+                    </span>
+                  </div>
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-[10px] text-zinc-500 shrink-0">Schedules found:</span>
+                    <span className="font-mono text-[10px] text-zinc-400 truncate">
+                      {diagnostics?.scheduleFiles.length ?? 0}
+                    </span>
+                  </div>
                 </div>
+                {diagnostics && diagnostics.scheduleFiles.length > 0 && (
+                  <div className="mt-2 max-h-20 space-y-1 overflow-auto rounded border border-zinc-800 bg-zinc-900 p-2">
+                    {diagnostics.scheduleFiles.slice(0, 3).map((file) => (
+                      <div key={file} className="truncate font-mono text-[10px] text-zinc-500" title={file}>
+                        {file}
+                      </div>
+                    ))}
+                    {diagnostics.scheduleFiles.length > 3 && (
+                      <div className="text-[10px] text-zinc-600">
+                        +{diagnostics.scheduleFiles.length - 3} more
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

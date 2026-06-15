@@ -25,6 +25,12 @@ interface ClaudeScheduledTasksFile {
   scheduledTasks: ClaudeScheduledTask[];
 }
 
+export interface ClaudeDiscoveryDiagnostics {
+  roots: string[];
+  sessionDirs: string[];
+  scheduleFiles: string[];
+}
+
 /**
  * Find all scheduled-tasks.json files from Claude Desktop sessions.
  * Claude stores these in AppData/Roaming/Claude on Windows,
@@ -32,46 +38,97 @@ interface ClaudeScheduledTasksFile {
  * ~/.config/Claude on Linux.
  */
 export async function findClaudeScheduleFiles(): Promise<string[]> {
-  const home = os.homedir();
-  const platform = os.platform();
-
-  let claudeDir: string;
-  if (platform === 'win32') {
-    claudeDir = path.join(home, 'AppData', 'Roaming', 'Claude');
-  } else if (platform === 'darwin') {
-    claudeDir = path.join(home, 'Library', 'Application Support', 'Claude');
-  } else {
-    claudeDir = path.join(home, '.config', 'Claude');
-  }
-
-  const results: string[] = [];
-
-  // Search in both session directories
-  const sessionDirs = [
-    path.join(claudeDir, 'local-agent-mode-sessions'),
-    path.join(claudeDir, 'claude-code-sessions'),
-  ];
-
-  for (const sessDir of sessionDirs) {
-    try {
-      await searchForScheduleFiles(sessDir, results, 0);
-    } catch {
-      // Directory may not exist
-    }
-  }
-
-  return results;
+  const diagnostics = await getClaudeDiscoveryDiagnostics();
+  return diagnostics.scheduleFiles;
 }
 
 /**
- * Recursively search for scheduled-tasks.json files (max depth 3).
+ * Return discovery diagnostics used by the UI/debugging tools.
+ */
+export async function getClaudeDiscoveryDiagnostics(): Promise<ClaudeDiscoveryDiagnostics> {
+  const roots = getClaudeConfigDirectories();
+  const sessionDirs = new Set<string>();
+  const scheduleFiles = new Set<string>();
+
+  for (const root of roots) {
+    const foundSessionDirs = await findSessionDirectories(root);
+    for (const sessDir of foundSessionDirs) {
+      sessionDirs.add(sessDir);
+      try {
+        await searchForScheduleFiles(sessDir, scheduleFiles, 0);
+      } catch {
+        // Directory may not exist
+      }
+    }
+  }
+
+  return {
+    roots,
+    sessionDirs: [...sessionDirs],
+    scheduleFiles: [...scheduleFiles],
+  };
+}
+
+function getClaudeConfigDirectories(): string[] {
+  // Optional override for non-standard installs or tests.
+  const explicit = process.env.CLAUDE_CONFIG_DIR;
+  if (explicit) return [explicit];
+
+  const home = os.homedir();
+  const platform = os.platform();
+  const dirs = new Set<string>([path.join(home, '.claude')]);
+
+  if (platform === 'win32') {
+    dirs.add(path.join(home, 'AppData', 'Roaming', 'Claude'));
+    return [...dirs];
+  }
+  if (platform === 'darwin') {
+    dirs.add(path.join(home, 'Library', 'Application Support', 'Claude'));
+    return [...dirs];
+  }
+
+  // Respect XDG on Linux when provided and handle both casing variants.
+  const xdgConfigHome = process.env.XDG_CONFIG_HOME;
+  if (xdgConfigHome) {
+    dirs.add(path.join(xdgConfigHome, 'Claude'));
+    dirs.add(path.join(xdgConfigHome, 'claude'));
+  } else {
+    dirs.add(path.join(home, '.config', 'Claude'));
+    dirs.add(path.join(home, '.config', 'claude'));
+  }
+
+  return [...dirs];
+}
+
+async function findSessionDirectories(claudeDir: string): Promise<string[]> {
+  const dirs = new Set<string>([
+    path.join(claudeDir, 'local-agent-mode-sessions'),
+    path.join(claudeDir, 'claude-code-sessions'),
+  ]);
+
+  try {
+    const entries = await fs.readdir(claudeDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isDirectory() && entry.name.endsWith('-sessions')) {
+        dirs.add(path.join(claudeDir, entry.name));
+      }
+    }
+  } catch {
+    // Claude config directory may not exist yet.
+  }
+
+  return [...dirs];
+}
+
+/**
+ * Recursively search for scheduled-tasks.json files (max depth 5).
  */
 async function searchForScheduleFiles(
   dir: string,
-  results: string[],
+  results: Set<string>,
   depth: number
 ): Promise<void> {
-  if (depth > 3) return;
+  if (depth > 5) return;
 
   try {
     const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -80,7 +137,7 @@ async function searchForScheduleFiles(
       const fullPath = path.join(dir, entry.name);
 
       if (entry.isFile() && entry.name === 'scheduled-tasks.json') {
-        results.push(fullPath);
+        results.add(fullPath);
       } else if (entry.isDirectory()) {
         await searchForScheduleFiles(fullPath, results, depth + 1);
       }
