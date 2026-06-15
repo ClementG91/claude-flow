@@ -87,11 +87,13 @@ export async function createServer(port?: number) {
     await server.register(fastifyStatic, {
       root: webDist,
       prefix: '/',
-      wildcard: false,
     });
 
-    // SPA fallback: serve index.html for non-API routes
-    server.setNotFoundHandler(async (_req, reply) => {
+    // SPA fallback: serve index.html for client-side routes (non-API, non-asset)
+    server.setNotFoundHandler(async (req, reply) => {
+      if (req.url.startsWith('/assets/') || req.url.startsWith('/trpc/') || req.url === '/health') {
+        return reply.code(404).send({ error: 'Not found' });
+      }
       return reply.sendFile('index.html');
     });
 
