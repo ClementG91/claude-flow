@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest';
 import { updateScheduleCache, getTaskSchedule, type ScheduleCache } from '../src/schedule-cache.js';
-import type { TaskSchedule } from '../src/types.js';
 
 function createEmptyCache(): ScheduleCache {
   return { lastSyncedAt: '', schedules: {} };

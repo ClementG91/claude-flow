@@ -7,8 +7,13 @@
     "dev": "pnpm --filter @claude-flow/server dev",
     "build": "pnpm -r build",
     "test": "pnpm --filter @claude-flow/core test",
-    "lint": "eslint . --ext .ts,.tsx",
+    "lint": "pnpm exec eslint . --ext .ts,.tsx --ignore-pattern dist --ignore-pattern node_modules",
     "clean": "pnpm -r clean"
+  },
+  "devDependencies": {
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.0.0"
   },
   "keywords": [
     "claude",

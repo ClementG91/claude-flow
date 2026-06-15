@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Workflow, LayoutGrid, LayoutList, RefreshCw, Settings } from 'lucide-react';
+import { LayoutGrid, LayoutList, RefreshCw, Settings } from 'lucide-react';
 import { toast } from 'sonner';
 import { useWorkflowStore } from '../stores/workflow';
 import { trpc } from '../lib/trpc';
@@ -33,7 +33,10 @@ export function Header() {
       <div className="flex items-center gap-3">
         <div className="flex items-center gap-2">
           <div className="rounded-lg bg-claude-600/20 p-1.5">
-            <Workflow className="h-5 w-5 text-claude-500" />
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" className="h-5 w-5">
+              <rect width="32" height="32" rx="8" fill="#18181b"/>
+              <path d="M8 16h4l3-6 4 12 3-6h4" stroke="#f0760c" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
           </div>
           <h1 className="text-lg font-semibold tracking-tight">
             Claude <span className="text-claude-500">Flow</span>

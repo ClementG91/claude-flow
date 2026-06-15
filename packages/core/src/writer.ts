@@ -24,8 +24,8 @@ export async function createTaskFile(basePath: string, input: CreateTaskInput): 
   try {
     await fs.access(filePath);
     throw new Error(`Task "${input.taskId}" already exists at ${filePath}`);
-  } catch (err: any) {
-    if (err.code !== 'ENOENT') throw err;
+  } catch (err: unknown) {
+    if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
   }
 
   // Create directory and file

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Shield, Cpu, FolderOpen, Wrench, Zap } from 'lucide-react';
+import { Shield, Cpu, FolderOpen, Wrench, Zap, Globe } from 'lucide-react';
 import { toast } from 'sonner';
 import { trpc } from '../lib/trpc';
 
@@ -213,6 +213,42 @@ export function TaskConfigPanel({ taskId }: TaskConfigPanelProps) {
           </ul>
         )}
       </div>
+
+      {/* Chrome Allowed Domains (read-only) */}
+      {config.chromeAllowedDomains && config.chromeAllowedDomains.length > 0 && (
+        <div className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Globe className="h-4 w-4 text-claude-500" />
+            <label className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+              Chrome Allowed Domains
+            </label>
+            <span className="rounded-full bg-zinc-800 px-1.5 py-0.5 text-[10px] text-zinc-400">
+              {config.chromeAllowedDomains.length}
+            </span>
+          </div>
+          <ul className="space-y-1">
+            {config.chromeAllowedDomains.map((domain, i) => (
+              <li
+                key={i}
+                className="truncate rounded bg-zinc-950 px-2.5 py-1.5 font-mono text-xs text-zinc-300"
+                title={domain}
+              >
+                {domain}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Last Scheduled For (read-only) */}
+      {config.lastScheduledFor && (
+        <div className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2">
+          <p className="text-[10px] uppercase text-zinc-600">Last Scheduled For</p>
+          <p className="mt-1 text-xs text-zinc-300">
+            {new Date(config.lastScheduledFor).toLocaleString()}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

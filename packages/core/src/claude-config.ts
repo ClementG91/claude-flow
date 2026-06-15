@@ -13,9 +13,12 @@ export interface ClaudeDesktopTaskConfig {
   model?: string;
   createdAt?: number;
   lastRunAt?: string;
+  lastScheduledFor?: string;
+  notifySessionId?: string;
   disableJitter?: boolean;
   userSelectedFolders?: string[];
   chromePermissionMode?: string;
+  chromeAllowedDomains?: string[];
   approvedPermissions?: Array<{ toolName: string }>;
 }
 

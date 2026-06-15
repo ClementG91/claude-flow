@@ -155,7 +155,16 @@ export async function startServer(port?: number) {
     await server.listen({ port: serverPort, host: '0.0.0.0' });
     return server;
   } catch (err) {
-    server.log.error(err);
+    const code = (err as NodeJS.ErrnoException).code;
+    if (code === 'EADDRINUSE') {
+      server.log.error(
+        `Port ${serverPort} is already in use. Is another instance of claude-flow running?\n` +
+        `  → Kill it with: npx kill-port ${serverPort}\n` +
+        `  → Or change the port in ~/.claude-flow/config.json`
+      );
+    } else {
+      server.log.error(err);
+    }
     process.exit(1);
   }
 }

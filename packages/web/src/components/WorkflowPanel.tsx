@@ -5,7 +5,7 @@ import { trpc } from '../lib/trpc';
 import { useWorkflowStore } from '../stores/workflow';
 
 export function WorkflowPanel() {
-  const { data: workflows, isLoading } = trpc.workflows.list.useQuery();
+  const { data: workflows } = trpc.workflows.list.useQuery();
   const utils = trpc.useUtils();
   const { activeWorkflowId, setActiveWorkflow, openConfirmDialog } = useWorkflowStore();
 

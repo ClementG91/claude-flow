@@ -20,10 +20,12 @@ export const claudeDesktopRouter = router({
         id: config.id,
         model: config.model ?? null,
         chromePermissionMode: config.chromePermissionMode ?? null,
+        chromeAllowedDomains: config.chromeAllowedDomains ?? [],
         enabled: config.enabled,
         disableJitter: config.disableJitter ?? false,
         userSelectedFolders: config.userSelectedFolders ?? [],
         approvedPermissions: (config.approvedPermissions ?? []).map((p) => p.toolName),
+        lastScheduledFor: config.lastScheduledFor ?? null,
         filePath: config.filePath,
       };
     }),
@@ -62,9 +64,10 @@ export const claudeDesktopRouter = router({
    */
   listAvailableModels: publicProcedure.query(() => {
     return [
-      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6' },
+      { id: 'claude-opus-4-8', label: 'Claude Opus 4.8 (most capable)' },
+      { id: 'claude-sonnet-4-6', label: 'Claude Sonnet 4.6 (recommended)' },
+      { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (fastest)' },
       { id: 'claude-opus-4-6', label: 'Claude Opus 4.6' },
-      { id: 'claude-haiku-3-5', label: 'Claude Haiku 3.5' },
     ];
   }),
 });
