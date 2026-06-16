@@ -17,7 +17,7 @@ n8n-style task orchestration with a drag-and-drop canvas, real schedule data, an
 
 ---
 
-![Canvas View](docs/screenshots/canvas-view.png)
+![Full UI](docs/screenshots/full-ui.png)
 
 *All your Claude scheduled tasks — grouped by workflow on a live canvas.*
 
@@ -51,6 +51,10 @@ Three-tab editor that opens alongside the canvas:
 | **Content** | Edit the SKILL.md prompt and description with Ctrl+S quick save |
 | **Schedule** | Toggle enable/disable, pick a cron preset or enter custom expression, see last/next run |
 | **Config** | Change permission mode, AI model, jitter, working folders, approved MCP tools, allowed Chrome domains |
+
+![Task Editor — Content](docs/screenshots/task-editor-content.png)
+
+*Content tab: edit the SKILL.md prompt directly. Ctrl+S to save.*
 
 ![Task Editor — Schedule](docs/screenshots/task-editor-schedule.png)
 
@@ -211,6 +215,7 @@ The server exposes a tRPC API at `/trpc/*`:
 - **MCP sync** — You can still push authoritative schedule data from MCP with `schedule.syncFromMcp`; Claude Flow merges this with existing local schedule cache entries.
 - **Diagnostics** — Use `claudeDesktop.getDiscoveryDiagnostics` to inspect config roots, detected session directories, and discovered `scheduled-tasks.json` files.
 - **Model discovery** — `claudeDesktop.listAvailableModels` is derived from models currently found in Claude schedule files (with fallback defaults when none are detected).
+- **Windows file permissions** — All tasks are editable regardless of which directory they live in. If a task file is in a Windows-protected location (e.g. `Program Files` or a folder with restricted ACLs), Windows will block the write and Claude Flow will display an error: *"Cannot modify this task: access denied (EPERM)."* In that case, either move the task folder to a user-owned directory, or adjust folder permissions via `icacls` / Properties → Security.
 
 ## Development
 
