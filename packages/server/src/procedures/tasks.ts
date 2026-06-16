@@ -96,13 +96,11 @@ export const tasksRouter = router({
     const seenIds = new Set(tasks.map((t) => t.taskId));
 
     // Also scan directories referenced in Claude Desktop config
-    // These are marked readonly (may be in Windows protected folders)
     const extraDirs = await discoverExtraTaskDirs(config.tasksDirectory);
     for (const dir of extraDirs) {
       const extra = await scanTasks(dir);
       for (const task of extra) {
         if (!seenIds.has(task.taskId)) {
-          task.readonly = true;
           tasks.push(task);
           seenIds.add(task.taskId);
         }
@@ -123,12 +121,6 @@ export const tasksRouter = router({
       const filePath = path.join(baseDir, input.taskId, 'SKILL.md');
       const raw = await fs.readFile(filePath, 'utf-8');
       const task = parseSkillFile(raw, filePath, input.taskId);
-      // Mark readonly if task lives outside the main directory
-      const mainNorm = config.tasksDirectory.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-      const baseDirNorm = baseDir.replace(/\\/g, '/').replace(/\/+$/, '').toLowerCase();
-      if (baseDirNorm !== mainNorm) {
-        task.readonly = true;
-      }
       return task;
     }),
 
